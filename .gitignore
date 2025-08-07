@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+env/
+
+# dotenv file with secrets
+.env
+*.env
+
+# VS Code files
+.vscode/
+
+# Mac system files
+.DS_Store
+
+# JSON credentials (Google service account)
+google_credentials.json
+
+# Logs and cache
+*.log
+*.sqlite3
+.cache/
+
+# ngrok files
+ngrok.log
+ngrok.yml
+*.ngrok.*
+
+# OS / Thumbnail files
+Thumbs.db
+ehthumbs.db
