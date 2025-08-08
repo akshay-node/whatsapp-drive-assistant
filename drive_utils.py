@@ -46,29 +46,40 @@ def list_files(folder_name):
 def delete_file(path):
     try:
         q = f"name='{path.split('/')[-1]}'"
-        files = service.files().list(q=q).execute().get('files', [])
-        if not files: return "File not found"
-        service.files().delete(fileId=files[0]['id']).execute()
+        files = service.files().list(q=q, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
+        if not files:
+            return "File not found"
+        service.files().delete(fileId=files[0]['id'], supportsAllDrives=True).execute()
         return "File deleted"
     except Exception as e:
-        return f" An error occurred while deleting: {str(e)}"
-    
+        return f"An error occurred while deleting: {str(e)}"
+
 def move_file(source, dest):
     try:
         q = f"name='{source.split('/')[-1]}'"
-        files = service.files().list(q=q).execute().get('files', [])
-        if not files: return "Source file not found"
+        files = service.files().list(q=q, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
+        if not files:
+            return "Source file not found"
         source_id = files[0]['id']
+
         q2 = f"name='{dest}' and mimeType='application/vnd.google-apps.folder'"
-        folders = service.files().list(q=q2).execute().get('files', [])
-        if not folders: return "Destination folder not found"
+        folders = service.files().list(q=q2, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
+        if not folders:
+            return "Destination folder not found"
         folder_id = folders[0]['id']
-        file = service.files().get(fileId=source_id, fields='parents').execute()
+
+        file = service.files().get(fileId=source_id, fields='parents', supportsAllDrives=True).execute()
         prev_parents = ",".join(file.get('parents'))
-        service.files().update(fileId=source_id, addParents=folder_id, removeParents=prev_parents).execute()
+
+        service.files().update(
+            fileId=source_id,
+            addParents=folder_id,
+            removeParents=prev_parents,
+            supportsAllDrives=True
+        ).execute()
         return "File moved"
     except Exception as e:
-        return f" An error occurred while move: {str(e)}"
+        return f"An error occurred while move: {str(e)}"
     
 def summarize_folder(folder_name):
     try:
