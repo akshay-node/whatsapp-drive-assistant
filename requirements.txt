@@ -2,5 +2,8 @@ flask
 twilio
 openai
 google-api-python-client
-google-auth
+google_auth_oauthlib
+PyMuPDF
+python-docx
 python-dotenv
+werkzeug

@@ -32,6 +32,9 @@ ngrok.log
 ngrok.yml
 *.ngrok.*
 
-# OS / Thumbnail files
-Thumbs.db
-ehthumbs.db
+# Token files
+token.json
+amazing-office.json
+google_credentials.json
+
+

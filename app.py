@@ -1,6 +1,6 @@
-from flask import Flask, request
+from flask import Flask, request , Response
 from twilio_utils import verify_twilio, send_whatsapp_message
-from drive_utils import list_files, delete_file, move_file, summarize_folder
+from drive_utils import list_files,list_all_folders, delete_file, move_file, summarize_folder
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 from dotenv import load_dotenv
@@ -15,7 +15,10 @@ def webhook():
     if not verify_twilio(request): return "Invalid", 403
     msg = request.form.get('Body', '').strip()
     sender = request.form.get('From', '')
-    if msg.startswith('LIST'):
+    if msg.upper().strip() == "LISTALL":
+        result = list_all_folders()
+        send_whatsapp_message(sender, result)
+    elif msg.startswith('LIST'):
         folder = msg[5:]
         result = list_files(folder)
         send_whatsapp_message(sender, result)
