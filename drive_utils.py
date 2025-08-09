@@ -1,8 +1,12 @@
 import os
+import docx
+import fitz  
 from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from gpt_utils import summarize_text
+from googleapiclient.http import MediaIoBaseDownload
+
+import io
 
 load_dotenv()
 
@@ -54,47 +58,82 @@ def delete_file(path):
     except Exception as e:
         return f"An error occurred while deleting: {str(e)}"
 
-def move_file(source, dest):
-    try:
-        q = f"name='{source.split('/')[-1]}'"
-        files = service.files().list(q=q, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
-        if not files:
-            return "Source file not found"
-        source_id = files[0]['id']
 
-        q2 = f"name='{dest}' and mimeType='application/vnd.google-apps.folder'"
-        folders = service.files().list(q=q2, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
-        if not folders:
-            return "Destination folder not found"
-        folder_id = folders[0]['id']
+def find_folder_id_by_name(folder_name):
+    query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    response = service.files().list(q=query, fields="files(id, name)").execute()
+    folders = response.get('files', [])
+    if not folders:
+        return None
+    for f in folders:
+        print(f"Found folder: {f['name']} with ID: {f['id']}")
+    return folders[0]['id']  
 
-        file = service.files().get(fileId=source_id, fields='parents', supportsAllDrives=True).execute()
-        prev_parents = ",".join(file.get('parents'))
+def move_file(source_folder_name, file_name, dest_folder_name):
+    source_folder_id = find_folder_id_by_name(source_folder_name)
+    if not source_folder_id:
+        return "Source folder not found"
 
-        service.files().update(
-            fileId=source_id,
-            addParents=folder_id,
-            removeParents=prev_parents,
-            supportsAllDrives=True
-        ).execute()
-        return "File moved"
-    except Exception as e:
-        return f"An error occurred while move: {str(e)}"
-    
+    dest_folder_id = find_folder_id_by_name(dest_folder_name)
+    if not dest_folder_id:
+        return "Destination folder not found"
+
+    files = service.files().list(q=f"name='{file_name}' and '{source_folder_id}' in parents and trashed=false").execute().get('files', [])
+    if not files:
+        return "File not found in source folder"
+    file_id = files[0]['id']
+
+    file = service.files().get(fileId=file_id, fields='parents').execute()
+    previous_parents = ",".join(file.get('parents'))
+
+    service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents).execute()
+
+    return "File moved successfully"
+
+
+
 def summarize_folder(folder_name):
     try:
-        q = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
-        folders = service.files().list(q=q).execute().get('files', [])
-        if not folders: return "Folder not found"
+        q = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        folders = service.files().list(q=q, fields="files(id, name)").execute().get('files', [])
+        if not folders:
+            return "Folder not found"
         folder_id = folders[0]['id']
-        files = service.files().list(q=f"'{folder_id}' in parents").execute().get('files', [])
+
+        q_files = f"'{folder_id}' in parents and trashed=false"
+        files = service.files().list(q=q_files, fields="files(id, name, mimeType)").execute().get('files', [])
+
         summaries = []
         for f in files:
             if f['mimeType'] in ['text/plain', 'application/vnd.google-apps.document']:
-                content = service.files().get_media(fileId=f['id']).execute().decode()
-                summary = summarize_text(content)
+                # File content get karo
+                if f['mimeType'] == 'text/plain':
+                    request = service.files().get_media(fileId=f['id'])
+                    fh = io.BytesIO()
+                    downloader = MediaIoBaseDownload(fh, request)
+                    done = False
+                    while not done:
+                        status, done = downloader.next_chunk()
+                    content = fh.getvalue().decode('utf-8')
+
+                elif f['mimeType'] == 'application/vnd.google-apps.document':
+                    content = service.files().export(fileId=f['id'], mimeType='text/plain').execute().decode('utf-8')
+
+                summary = simple_summarize(content)
                 summaries.append(f"{f['name']}:\n{summary}")
-        return "\n\n".join(summaries) if summaries else "No readable files"
+
+        if summaries:
+            return "\n\n".join(summaries)
+        else:
+            return "No readable files found in folder."
+
     except Exception as e:
-        return f" An error occurred while summarize : {str(e)}"
-    
+        return f"Error while summarizing folder: {str(e)}"
+
+
+def simple_summarize(text, max_lines=3):
+    lines = text.strip().split('\n')
+    summary = "\n".join(lines[:max_lines])
+    if len(lines) > max_lines:
+        summary += "\n..."
+    return summary

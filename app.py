@@ -26,13 +26,17 @@ def webhook():
         path = msg[7:]
         result = delete_file(path)
         send_whatsapp_message(sender, result)
-    elif msg.startswith('MOVE'):
-        parts = msg[5:].split(' ')
-        if len(parts) == 2:
-            result = move_file(parts[0], parts[1])
+    elif msg.upper().startswith('MOVE'):
+        command_args = msg[5:].strip()
+        parts = command_args.split(maxsplit=2)  
+        if len(parts) == 3:
+            source_folder = parts[0]
+            file_name = parts[1]
+            dest_folder = parts[2]
+            result = move_file(source_folder, file_name, dest_folder)
             send_whatsapp_message(sender, result)
         else:
-            send_whatsapp_message(sender, 'Invalid MOVE syntax')
+            send_whatsapp_message(sender, 'Invalid MOVE syntax. Use: MOVE <source_folder> <file_name> <dest_folder>')
     elif msg.startswith('SUMMARY'):
         folder = msg[8:]
         result = summarize_folder(folder)
