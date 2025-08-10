@@ -47,17 +47,22 @@ def list_files(folder_name):
     except Exception as e:
         return f" An error occurred while list files : {str(e)}"
     
-def delete_file(path):
+def delete_file(folder_name, file_name):
     try:
-        q = f"name='{path.split('/')[-1]}'"
-        files = service.files().list(q=q, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
+        folder_id = find_folder_id_by_name(folder_name)
+        if not folder_id:
+            return "Folder not found"
+        file_name = file_name.strip('"').strip("'")
+        query = f"name='{file_name}' and '{folder_id}' in parents and trashed=false"
+        files = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute().get('files', [])
         if not files:
-            return "File not found"
-        service.files().delete(fileId=files[0]['id'], supportsAllDrives=True).execute()
-        return "File deleted"
+            return "File not found in specified folder"
+        file_id = files[0]['id']
+        service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
+        return "File deleted successfully"
     except Exception as e:
         return f"An error occurred while deleting: {str(e)}"
-
+    
 def find_folder_id_by_name(folder_name):
     query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
     response = service.files().list(

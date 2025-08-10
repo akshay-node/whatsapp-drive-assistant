@@ -23,8 +23,13 @@ def webhook():
         result = list_files(folder)
         send_whatsapp_message(sender, result)
     elif msg.startswith('DELETE'):
-        path = msg[7:]
-        result = delete_file(path)
+        parts = msg.split(' ', 2)  
+        if len(parts) == 3:
+            folder_name = parts[1]
+            file_name = parts[2]
+            result = delete_file(folder_name, file_name) 
+        else:
+            result = "Invalid DELETE command format. Use: DELETE FOLDERNAME FILENAME"
         send_whatsapp_message(sender, result)
     elif msg.upper().startswith('MOVE'):
         command_args = msg[5:].strip()
