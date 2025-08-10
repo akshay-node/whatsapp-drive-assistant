@@ -60,14 +60,16 @@ def delete_file(path):
 
 
 def find_folder_id_by_name(folder_name):
-    query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-    response = service.files().list(q=query, fields="files(id, name)").execute()
+    query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    response = service.files().list(
+        q=query,
+        fields="files(id, name)"
+    ).execute()
     folders = response.get('files', [])
     if not folders:
+        print(f"No folder found with name: {folder_name}")
         return None
-    for f in folders:
-        print(f"Found folder: {f['name']} with ID: {f['id']}")
-    return folders[0]['id']  
+    return folders[0]['id']
 
 def move_file(source_folder_name, file_name, dest_folder_name):
     source_folder_id = find_folder_id_by_name(source_folder_name)
