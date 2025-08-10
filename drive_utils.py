@@ -58,18 +58,24 @@ def delete_file(path):
     except Exception as e:
         return f"An error occurred while deleting: {str(e)}"
 
-
 def find_folder_id_by_name(folder_name):
-    query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
     response = service.files().list(
         q=query,
-        fields="files(id, name)"
+        fields="files(id, name)",
+        corpora='user',
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        pageSize=10
     ).execute()
     folders = response.get('files', [])
     if not folders:
-        print(f"No folder found with name: {folder_name}")
+        print(f"No folder found with name: '{folder_name}'")
         return None
+    for f in folders:
+        print(f"Found folder: {f['name']} with ID: {f['id']}")
     return folders[0]['id']
+
 
 def move_file(source_folder_name, file_name, dest_folder_name):
     source_folder_id = find_folder_id_by_name(source_folder_name)
@@ -80,15 +86,25 @@ def move_file(source_folder_name, file_name, dest_folder_name):
     if not dest_folder_id:
         return "Destination folder not found"
 
-    files = service.files().list(q=f"name='{file_name}' and '{source_folder_id}' in parents and trashed=false").execute().get('files', [])
+    file_name = file_name.strip('"').strip("'")
+
+    query = f"name='{file_name}' and '{source_folder_id}' in parents and trashed=false"
+    files = service.files().list(
+        q=query,
+        spaces='drive',
+        fields='files(id, name)'
+    ).execute().get('files', [])
+
     if not files:
         return "File not found in source folder"
     file_id = files[0]['id']
+
 
     file = service.files().get(fileId=file_id, fields='parents').execute()
     previous_parents = ",".join(file.get('parents'))
 
     service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents).execute()
+
 
     return "File moved successfully"
 
